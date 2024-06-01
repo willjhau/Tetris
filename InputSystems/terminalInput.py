@@ -18,7 +18,6 @@ class TerminalInput:
         keyboard.Listener(on_press=self.on_press).start()
 
     def on_press(self, key):
-        print(key)
         if key == TerminalInput.ESCAPE:
             # Stop listener
             return False
@@ -38,8 +37,5 @@ class TerminalInput:
             self.eventQueue.append(game.Game.ROTATE_180)
         elif key == TerminalInput.HOLD:
             self.eventQueue.append(game.Game.HOLD)
-
-        print(self.eventQueue)    
-
 if __name__ == "__main__":
     terminalInput = TerminalInput()

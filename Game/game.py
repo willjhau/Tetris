@@ -44,6 +44,7 @@ class Game:
         self.updated = True
         self.running = True
         self.holdUsed = False
+        self.level = 0
 
         # on one thread, start the game loop, on another start the block fall loop
         gameThread = threading.Thread(target=self.startGameLoop)
@@ -56,13 +57,11 @@ class Game:
     
     def blockFallLoop(self):
         while self.running:
-            print("softdrop")
             self.eventQueue.insert(0, self.SOFT_DROP)
-            time.sleep(self.speed)
+            time.sleep(1/self.speed)
 
     def startGameLoop(self):
         self.newPiece()
-        print(self.currentPiece)
         
         while self.running:
             if len(self.eventQueue) > 0:
@@ -75,7 +74,7 @@ class Game:
                 print(f'HOLD PIECE: {self.holdPiece}')
                 print(f'SCORE: {self.score}')
                 print(f'LINES CLEARED: {self.lines}')
-                print(f'pivot: {self.pivot}')
+                # print(f'pivot: {self.pivot}')
                 print(self.board)
 
     def handleEvent(self, event):
@@ -154,10 +153,7 @@ class Game:
                 self.board.getSquare(x, y).state = square.Square.VOLATILE
                 self.board.getSquare(x, y).color = self.currentPiece.color
             self.updated = True
-        else:
-            print(self.pivot)
-            print(currentPos)
-            print(nextPos)
+
 
     def hardDrop(self):
         originalPos = self.getCurrentPos()
@@ -186,9 +182,7 @@ class Game:
         
     def softDrop(self):
         currentPos = self.getCurrentPos()
-        print(currentPos)
         nextPos = [(x, y-1) for x, y in currentPos]
-        print(nextPos)
 
         canMove = not self.checkCollision(nextPos)
         if canMove:
@@ -212,8 +206,8 @@ class Game:
             self.updated = True
 
     def clearLines(self):
-        level = self.lines // 10
         linesCleared = []
+        initialLevel = self.level
         for h in range(self.height + self.MAX_T_SIZE):
             if all([self.board.getSquare(w, h).state == square.Square.STATIC for w in range(self.width)]):
                 self.lines += 1
@@ -225,8 +219,20 @@ class Game:
         if len(linesCleared) > 0:
             self.fixLines(linesCleared)
             self.updated = True
+            level = self.lines // 10
 
-            # TODO: SCORE
+            if level > initialLevel:
+                self.speed = min(self.MAX_SPEED, self.speed + config.SPEED_INCREASE)
+                self.level = level
+            
+            if len(linesCleared) == 1:
+                self.score += 40 * (self.level + 1)
+            elif len(linesCleared) == 2:
+                self.score += 100 * (self.level + 1)
+            elif len(linesCleared) == 3:
+                self.score += 300 * (self.level + 1)
+            elif len(linesCleared) == 4:
+                self.score += 1200 * (self.level + 1)
     
     def fixLines(self, linesCleared):
         """
