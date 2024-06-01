@@ -10,7 +10,6 @@ class Tetromino:
     Then add the class to the TETROMINOES list in Game/game.py
     """
 
-
     def __init__(self):
         pass
 

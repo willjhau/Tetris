@@ -11,12 +11,16 @@ class GameBoard:
         ])
         
     def getSquare(self, x, y):
-        return self.board[y][x]
+        if int(x) != x or int(y) != y:
+            raise ValueError(f"Coordinates must be integers: {x}, {y}")
+        
+        return self.board[int(y)][int(x)]
+
 
     def __str__(self):
         # Print the board with a space if the square is empty, an x if the square is static, and an o if the square is volatile
         return '\n'.join([
             ' '.join([
-                ' ' if sq.state == square.Square.EMPTY else 'x' if sq.state == square.Square.STATIC else 'o' for sq in row
-            ]) for row in self.board
+                '.' if sq.state == square.Square.EMPTY else 'x' if sq.state == square.Square.STATIC else 'o' for sq in row
+            ]) for row in self.board[::-1]
         ])
