@@ -18,10 +18,7 @@ class TerminalInput:
         keyboard.Listener(on_press=self.on_press).start()
 
     def on_press(self, key):
-        if key == TerminalInput.ESCAPE:
-            # Stop listener
-            return False
-        elif key == TerminalInput.MOVE_LEFT:
+        if key == TerminalInput.MOVE_LEFT:
             self.eventQueue.append(game.Game.MOVE_LEFT)
         elif key == TerminalInput.MOVE_RIGHT:
             self.eventQueue.append(game.Game.MOVE_RIGHT)

@@ -2,11 +2,12 @@ from random import randint
 from Game import square
 from Game import board
 from Game.Tetrominoes import tetromino, linePiece, jPiece, lPiece, oPiece, sPiece, tPiece, zPiece
-from InputSystems import terminalInput
+from InputSystems import keyboardInput
 import numpy as np
 import threading
 import time
 import config
+from Renderer import arrayRenderer
 
 class Game:
     TETROMINOES = [linePiece.LinePiece,
@@ -27,7 +28,7 @@ class Game:
     ROTATE_180 = 6
     HOLD = 7
 
-    def __init__(self, width, height):
+    def __init__(self, width, height, inputSystem, outputSystem):
         self.MAX_T_SIZE = max([tetromino.gridsize for tetromino in self.TETROMINOES])
         self.MAX_SPEED = config.MAX_SPEED
         self.width = width
@@ -41,15 +42,15 @@ class Game:
         self.nextPiece = None
         self.currentPiece = None
         self.eventQueue = []
-        self.updated = True
         self.running = True
         self.holdUsed = False
         self.level = 0
+        self.outputSystem = outputSystem()
 
         # on one thread, start the game loop, on another start the block fall loop
         gameThread = threading.Thread(target=self.startGameLoop)
         blockFallThread = threading.Thread(target=self.blockFallLoop)
-        inputThread = threading.Thread(target=terminalInput.TerminalInput, args=(self.eventQueue,))
+        inputThread = threading.Thread(target=inputSystem, args=(self.eventQueue,))
         gameThread.start()
         blockFallThread.start()
         inputThread.start()
@@ -68,14 +69,16 @@ class Game:
                 event = self.eventQueue.pop(0)
                 self.handleEvent(event)
 
-            if self.updated:
-                self.updated = False
-                print(f'NEXT PIECE: {self.nextPiece}')
-                print(f'HOLD PIECE: {self.holdPiece}')
-                print(f'SCORE: {self.score}')
-                print(f'LINES CLEARED: {self.lines}')
-                # print(f'pivot: {self.pivot}')
-                print(self.board)
+            # if self.updated:
+            #     self.updated = False
+            #     # print(f'NEXT PIECE: {self.nextPiece}')
+            #     # print(f'HOLD PIECE: {self.holdPiece}')
+            #     # print(f'SCORE: {self.score}')
+            #     # print(f'LINES CLEARED: {self.lines}')
+            #     # # print(f'pivot: {self.pivot}')
+            #     # print(self.board)
+            #     arrayRenderer.terminalOutput().updateBoard(self)
+
 
     def handleEvent(self, event):
         if event == self.MOVE_LEFT:
@@ -136,7 +139,9 @@ class Game:
                 self.board.getSquare(x, y).color = self.currentPiece.color
                 self.pivot = pivot
             
-            self.updated = True
+            self.outputSystem.updateHold(self)
+            self.outputSystem.updateNext(self)
+            self.outputSystem.updateBoard(self)
             return
 
     def rotatePiece(self, direction):
@@ -152,7 +157,8 @@ class Game:
                 x, y = coord
                 self.board.getSquare(x, y).state = square.Square.VOLATILE
                 self.board.getSquare(x, y).color = self.currentPiece.color
-            self.updated = True
+            
+            self.outputSystem.updateBoard(self)
 
 
     def hardDrop(self):
@@ -177,7 +183,9 @@ class Game:
         self.clearLines()
         self.newPiece()
         self.holdUsed = False
-        self.updated = True
+        
+        self.outputSystem.updateBoard(self)
+        self.outputSystem.updateNextPiece(self)
 
         
     def softDrop(self):
@@ -196,14 +204,17 @@ class Game:
                 self.board.getSquare(x, y).color = self.currentPiece.color
 
             self.pivot = (self.pivot[0], self.pivot[1] - 1)
-            self.updated = True
 
         else:
             self.lockPiece()
             self.clearLines()
             self.newPiece()
             self.holdUsed = False
-            self.updated = True
+
+            self.outputSystem.updateNext(self)
+
+        print(type(self))
+        self.outputSystem.updateBoard(self)
 
     def clearLines(self):
         linesCleared = []
@@ -218,7 +229,6 @@ class Game:
 
         if len(linesCleared) > 0:
             self.fixLines(linesCleared)
-            self.updated = True
             level = self.lines // 10
 
             if level > initialLevel:
@@ -233,6 +243,11 @@ class Game:
                 self.score += 300 * (self.level + 1)
             elif len(linesCleared) == 4:
                 self.score += 1200 * (self.level + 1)
+            
+            self.outputSystem.updateScore(self)
+            self.outputSystem.updateLines(self)
+            self.outputSystem.updateLevel(self)
+            self.outputSystem.updateBoard(self)
     
     def fixLines(self, linesCleared):
         """
@@ -250,6 +265,7 @@ class Game:
         if len(linesCleared) > 1:
             linesCleared = [linesCleared[i]-1 for i in range(1, len(linesCleared))]
             self.fixLines(linesCleared)
+
 
         return
 
@@ -283,7 +299,8 @@ class Game:
                 self.board.getSquare(x, y).color = self.currentPiece.color
         
         self.pivot = (self.pivot[0] + dx, self.pivot[1])
-        self.updated = True
+
+        self.outputSystem.updateBoard(self)
 
     def getNewPieceCoordinates(self):
         midpoint = self.width // 2
@@ -310,7 +327,6 @@ class Game:
             self.board.getSquare(x, y).color = self.currentPiece.color
             self.pivot = pivot
         
-        self.updated = True
         return 
     
     def checkCollision(self, nextPos):
