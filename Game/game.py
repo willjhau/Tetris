@@ -7,7 +7,13 @@ import numpy as np
 import threading
 import time
 import config
-from Renderer import arrayRenderer
+from Renderer import arrayRenderer, renderer
+
+class Flag:
+    def __init__(self, flag=False):
+        self.flag = flag
+    
+
 
 class Game:
     TETROMINOES = [linePiece.LinePiece,
@@ -28,7 +34,7 @@ class Game:
     ROTATE_180 = 6
     HOLD = 7
 
-    def __init__(self, width, height, inputSystem, outputSystem):
+    def __init__(self, width, height, inputSystem, outputSystem, inputArgs, outputArgs):
         self.MAX_T_SIZE = max([tetromino.gridsize for tetromino in self.TETROMINOES])
         self.MAX_SPEED = config.MAX_SPEED
         self.width = width
@@ -45,16 +51,25 @@ class Game:
         self.running = True
         self.holdUsed = False
         self.level = 0
-        self.outputSystem = outputSystem()
+        if outputArgs is None:
+            self.outputSystem = outputSystem()
+        else:
+            self.outputSystem = outputSystem(*outputArgs)
 
         # on one thread, start the game loop, on another start the block fall loop
-        gameThread = threading.Thread(target=self.startGameLoop)
+        # gameThread = threading.Thread(target=self.startGameLoop)
         blockFallThread = threading.Thread(target=self.blockFallLoop)
-        inputThread = threading.Thread(target=inputSystem, args=(self.eventQueue,))
-        gameThread.start()
-        blockFallThread.start()
-        inputThread.start()
 
+        inputFlag = Flag()
+        if inputArgs is None:
+            inputThread = threading.Thread(target=inputSystem, args=(inputFlag, self.eventQueue,), daemon=True)
+        else:
+            inputThread = threading.Thread(target=inputSystem, args=(inputFlag, self.eventQueue, *inputArgs), daemon=True)
+        # gameThread.start()
+        inputThread.start()
+        while not inputFlag.flag:
+            blockFallThread.start()
+            self.startGameLoop()
     
     def blockFallLoop(self):
         while self.running:
@@ -114,6 +129,7 @@ class Game:
                 self.board.getSquare(x, y).color = None
 
             self.newPiece()
+
         else:
             temp = self.currentPiece
             self.currentPiece = self.holdPiece
@@ -139,10 +155,8 @@ class Game:
                 self.board.getSquare(x, y).color = self.currentPiece.color
                 self.pivot = pivot
             
-            self.outputSystem.updateHold(self)
-            self.outputSystem.updateNext(self)
-            self.outputSystem.updateBoard(self)
-            return
+        self.outputSystem.updateBoard(self)
+        return
 
     def rotatePiece(self, direction):
         currentPos = self.getCurrentPos()
@@ -185,7 +199,6 @@ class Game:
         self.holdUsed = False
         
         self.outputSystem.updateBoard(self)
-        self.outputSystem.updateNextPiece(self)
 
         
     def softDrop(self):
@@ -211,9 +224,6 @@ class Game:
             self.newPiece()
             self.holdUsed = False
 
-            self.outputSystem.updateNext(self)
-
-        print(type(self))
         self.outputSystem.updateBoard(self)
 
     def clearLines(self):
@@ -244,9 +254,6 @@ class Game:
             elif len(linesCleared) == 4:
                 self.score += 1200 * (self.level + 1)
             
-            self.outputSystem.updateScore(self)
-            self.outputSystem.updateLines(self)
-            self.outputSystem.updateLevel(self)
             self.outputSystem.updateBoard(self)
     
     def fixLines(self, linesCleared):
@@ -298,7 +305,7 @@ class Game:
                 self.board.getSquare(x, y).state = square.Square.VOLATILE
                 self.board.getSquare(x, y).color = self.currentPiece.color
         
-        self.pivot = (self.pivot[0] + dx, self.pivot[1])
+            self.pivot = (self.pivot[0] + dx, self.pivot[1])
 
         self.outputSystem.updateBoard(self)
 

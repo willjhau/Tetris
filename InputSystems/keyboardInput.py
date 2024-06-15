@@ -13,9 +13,10 @@ class TerminalInput:
     HOLD = keyboard.KeyCode.from_char('q')
     ESCAPE = keyboard.Key.esc
 
-    def __init__(self, eventQueue):
+    def __init__(self, inputFlag, eventQueue):
         self.eventQueue = eventQueue
         keyboard.Listener(on_press=self.on_press).start()
+        inputFlag.flag = True
 
     def on_press(self, key):
         if key == TerminalInput.MOVE_LEFT:
@@ -34,5 +35,6 @@ class TerminalInput:
             self.eventQueue.append(game.Game.ROTATE_180)
         elif key == TerminalInput.HOLD:
             self.eventQueue.append(game.Game.HOLD)
+
 if __name__ == "__main__":
     terminalInput = TerminalInput()
