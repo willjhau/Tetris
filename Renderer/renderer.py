@@ -182,7 +182,7 @@ class Renderer(outputSystem.OutputSystem):
         
         pygame.display.flip()
 
-        self.clock.tick(20)
+        self.clock.tick(30)
 
     def updateBoard(self, gameClass):
         self.drawScreen(gameClass)

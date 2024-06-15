@@ -67,9 +67,8 @@ class Game:
             inputThread = threading.Thread(target=inputSystem, args=(inputFlag, self.eventQueue, *inputArgs), daemon=True)
         # gameThread.start()
         inputThread.start()
-        while not inputFlag.flag:
-            blockFallThread.start()
-            self.startGameLoop()
+        blockFallThread.start()
+        self.startGameLoop()
     
     def blockFallLoop(self):
         while self.running:
