@@ -6,3 +6,7 @@ class oPiece:
 
     def __init__(self):
         pass
+
+    @classmethod
+    def rotate(cls, shape, pivot, direction, rotateState):
+        return [(pivot, shape)]

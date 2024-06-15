@@ -23,7 +23,7 @@ class Game:
                    sPiece.sPiece,
                    tPiece.tPiece,
                    zPiece.zPiece
-                     ]
+                    ]
     
     MOVE_LEFT = 0
     MOVE_RIGHT = 1
@@ -51,6 +51,7 @@ class Game:
         self.running = True
         self.holdUsed = False
         self.level = 0
+        self.rotateState = 0
         if outputArgs is None:
             self.outputSystem = outputSystem()
         else:
@@ -58,7 +59,7 @@ class Game:
 
         # on one thread, start the game loop, on another start the block fall loop
         # gameThread = threading.Thread(target=self.startGameLoop)
-        blockFallThread = threading.Thread(target=self.blockFallLoop)
+        blockFallThread = threading.Thread(target=self.blockFallLoop, daemon=True)
 
         inputFlag = Flag()
         if inputArgs is None:
@@ -67,6 +68,9 @@ class Game:
             inputThread = threading.Thread(target=inputSystem, args=(inputFlag, self.eventQueue, *inputArgs), daemon=True)
         # gameThread.start()
         inputThread.start()
+        while not inputFlag.flag:
+            pass
+
         blockFallThread.start()
         self.startGameLoop()
     
@@ -159,19 +163,28 @@ class Game:
 
     def rotatePiece(self, direction):
         currentPos = self.getCurrentPos()
-        nextPos = tetromino.Tetromino.rotate(currentPos, self.pivot, direction)
-        canRotate = not self.checkCollision(nextPos)
-        if canRotate:
-            for coord in currentPos:
-                x, y = coord
-                self.board.getSquare(x, y).state = square.Square.EMPTY
-                self.board.getSquare(x, y).color = None
-            for coord in nextPos:
-                x, y = coord
-                self.board.getSquare(x, y).state = square.Square.VOLATILE
-                self.board.getSquare(x, y).color = self.currentPiece.color
-            
-            self.outputSystem.updateBoard(self)
+        nextPosList = self.currentPiece.rotate(currentPos, self.pivot, direction, self.rotateState)
+        for pivot, nextPos in nextPosList:
+            canRotate = not self.checkCollision(nextPos)
+            if canRotate:
+                for coord in currentPos:
+                    x, y = coord
+                    self.board.getSquare(x, y).state = square.Square.EMPTY
+                    self.board.getSquare(x, y).color = None
+                for coord in nextPos:
+                    x, y = coord
+                    self.board.getSquare(x, y).state = square.Square.VOLATILE
+                    self.board.getSquare(x, y).color = self.currentPiece.color
+                
+                self.outputSystem.updateBoard(self)
+                self.pivot = pivot
+                if direction == 0:
+                    self.rotateState = (self.rotateState + 1) % 4
+                elif direction == 1:
+                    self.rotateState = (self.rotateState - 1) % 4
+                else:
+                    self.rotateState = (self.rotateState + 2) % 4
+                return
 
 
     def hardDrop(self):
@@ -331,7 +344,9 @@ class Game:
             
             self.board.getSquare(x, y).state = square.Square.VOLATILE
             self.board.getSquare(x, y).color = self.currentPiece.color
-            self.pivot = pivot
+        self.pivot = pivot
+        self.rotateState = 0
+        
         
         return 
     

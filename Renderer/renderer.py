@@ -82,7 +82,8 @@ class Renderer(outputSystem.OutputSystem):
                 c = square.color
                 if c == None:
                     c = self.NULL_COLOR
-                pygame.draw.rect(self.screen,
+                if rowI > 3 or c != self.NULL_COLOR:
+                    pygame.draw.rect(self.screen,
                                  c,
                                  [(self.MARGIN + self.SQUARE_SIZE) * col +
                                    self.SEPARATOR * 2 + self.MARGIN +
