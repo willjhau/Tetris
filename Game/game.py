@@ -34,7 +34,7 @@ class Game:
     ROTATE_180 = 6
     HOLD = 7
 
-    def __init__(self, width, height, inputSystem, outputSystem, inputArgs, outputArgs):
+    def __init__(self, width, height, inputSystem, outputSystem, inputArgs, outputArgs, agent=False):
         self.MAX_T_SIZE = max([tetromino.gridsize for tetromino in self.TETROMINOES])
         self.MAX_SPEED = config.MAX_SPEED
         self.width = width
@@ -48,10 +48,11 @@ class Game:
         self.nextPiece = None
         self.currentPiece = None
         self.eventQueue = []
-        self.running = True
+        self.running = False
         self.holdUsed = False
         self.level = 0
         self.rotateState = 0
+        self.boardChanged = False
         if outputArgs is None:
             self.outputSystem = outputSystem()
         else:
@@ -62,26 +63,36 @@ class Game:
         blockFallThread = threading.Thread(target=self.blockFallLoop, daemon=True)
 
         inputFlag = Flag()
-        if inputArgs is None:
-            inputThread = threading.Thread(target=inputSystem, args=(inputFlag, self.eventQueue,), daemon=True)
-        else:
-            inputThread = threading.Thread(target=inputSystem, args=(inputFlag, self.eventQueue, *inputArgs), daemon=True)
+        args = []
+        if inputArgs is not None:
+            for arg in inputArgs:
+                args.append(arg)
+        
+        if agent:
+            args.append(self)
+
+            
+
+        inputThread = threading.Thread(target=inputSystem, args=(inputFlag, self.eventQueue, *args), daemon=True)
         # gameThread.start()
         inputThread.start()
         while not inputFlag.flag:
             pass
+        print("Game Started")
 
         blockFallThread.start()
         self.startGameLoop()
     
     def blockFallLoop(self):
+        while not self.running:
+            pass
         while self.running:
             self.eventQueue.insert(0, self.SOFT_DROP)
             time.sleep(1/self.speed)
 
     def startGameLoop(self):
         self.newPiece()
-        
+        self.running = True
         while self.running:
             if len(self.eventQueue) > 0:
                 event = self.eventQueue.pop(0)
@@ -206,10 +217,13 @@ class Game:
             x, y = coord
             self.board.getSquare(x, y).state = square.Square.STATIC
             self.board.getSquare(x, y).color = self.currentPiece.color
+
+        
+
         self.clearLines()
         self.newPiece()
         self.holdUsed = False
-        
+        self.boardChanged = True # Used for debugging and display only
         self.outputSystem.updateBoard(self)
 
         
@@ -231,9 +245,11 @@ class Game:
             self.pivot = (self.pivot[0], self.pivot[1] - 1)
 
         else:
+            
             self.lockPiece()
             self.clearLines()
             self.newPiece()
+            self.boardChanged = True # Used for debugging and display only
             self.holdUsed = False
 
         self.outputSystem.updateBoard(self)
